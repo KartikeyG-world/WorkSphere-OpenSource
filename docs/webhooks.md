@@ -303,7 +303,7 @@ WORKER_SECRET=optional_dedicated_worker_secret_here
 # Database connection
 DATABASE_URL=postgresql://user:password@host:5432/worksphere
 
-# Clerk incoming webhook secret (for /api/webhook)
+# Clerk incoming webhook secret (for /api/webhooks/clerk)
 WEBHOOK_SECRET=whsec_your_clerk_webhook_signing_secret
 ```
 
@@ -399,5 +399,5 @@ The response returns an execution summary:
 - [`src/lib/notifications/httpClient.ts`](../src/lib/notifications/httpClient.ts) — HTTP client with SSRF revalidation, redirect control, and circuit breakers.
 - [`src/lib/ssrfValidation.ts`](../src/lib/ssrfValidation.ts) — Native IP and DNS SSRF validation engine.
 - [`src/lib/cronAuth.ts`](../src/lib/cronAuth.ts) — Cron and worker authorization helper.
-- [`src/app/api/webhook/route.ts`](../src/app/api/webhook/route.ts) — Incoming Clerk user synchronization webhook route.
+- [`src/app/api/webhooks/clerk/route.ts`](../src/app/api/webhooks/clerk/route.ts) — Canonical incoming Clerk user synchronization webhook route.
 - [`prisma/schema.prisma`](../prisma/schema.prisma) — Data models for endpoints, outbox events, and delivery logs.
