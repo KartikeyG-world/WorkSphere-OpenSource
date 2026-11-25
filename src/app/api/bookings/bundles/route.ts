@@ -20,7 +20,7 @@ import {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
+    const _userId = searchParams.get("userId");
 
     // Curated day pass bundles available for instant booking
     const curatedBundles = [
@@ -127,8 +127,68 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate each leg before fetching venues or calculating prices
+    for (let idx = 0; idx < legs.length; idx++) {
+      const leg = legs[idx];
+      if (!leg || typeof leg !== "object") {
+        return NextResponse.json(
+          { error: `Leg at index ${idx + 1} must be a valid object` },
+          { status: 400 },
+        );
+      }
+
+      if (!leg.venueId || typeof leg.venueId !== "string") {
+        return NextResponse.json(
+          { error: `Leg at index ${idx + 1} is missing a valid venueId` },
+          { status: 400 },
+        );
+      }
+
+      if ("durationHours" in leg) {
+        const rawDuration = leg.durationHours;
+        if (
+          rawDuration === null ||
+          rawDuration === undefined ||
+          rawDuration === ""
+        ) {
+          return NextResponse.json(
+            {
+              error: `Invalid duration for leg at index ${idx + 1}: durationHours cannot be null or empty.`,
+            },
+            { status: 400 },
+          );
+        }
+
+        const parsed =
+          typeof rawDuration === "number" ? rawDuration : Number(rawDuration);
+        if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 24) {
+          return NextResponse.json(
+            {
+              error: `Invalid duration for leg at index ${idx + 1}: durationHours must be a finite, positive number up to 24 hours.`,
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
+    // Normalize validated legs with consistent fallback duration
+    const validatedLegs = legs.map((leg: any, idx: number) => {
+      const rawDuration = leg.durationHours;
+      let durationHours = 2;
+      if (rawDuration !== undefined && rawDuration !== null) {
+        durationHours =
+          typeof rawDuration === "number" ? rawDuration : Number(rawDuration);
+      }
+      return {
+        ...leg,
+        durationHours,
+        legIndex: idx + 1,
+      };
+    });
+
     // Fetch venue details for all legs
-    const venueIds = legs.map((l: any) => l.venueId);
+    const venueIds = validatedLegs.map((l: any) => l.venueId);
     const venues = await prisma.venue.findMany({
       where: { id: { in: venueIds } },
       select: { id: true, name: true, category: true, address: true },
@@ -138,8 +198,8 @@ export async function POST(req: NextRequest) {
 
     // Calculate pass pricing with 25% multi-hop bundle discount
     const baseRatePerHour = 5.0;
-    const totalHours = legs.reduce(
-      (sum: number, leg: any) => sum + (Number(leg.durationHours) || 2),
+    const totalHours = validatedLegs.reduce(
+      (sum: number, leg: any) => sum + leg.durationHours,
       0,
     );
     const rawPrice = totalHours * baseRatePerHour;
@@ -149,11 +209,11 @@ export async function POST(req: NextRequest) {
     );
 
     // Calculate revenue attribution across venues
-    const legWeights = legs.map((l: any) => {
+    const legWeights = validatedLegs.map((l: any) => {
       const v = venueMap.get(l.venueId);
       return {
         venueId: l.venueId,
-        durationHours: Number(l.durationHours) || 2,
+        durationHours: l.durationHours,
         venueCategory: v?.category || "coworking",
       };
     });
@@ -167,24 +227,26 @@ export async function POST(req: NextRequest) {
     const qrToken = generateWorkHopPassToken(bundleId, userId, date);
 
     // Construct enriched legs
-    const enrichedLegs: WorkHopLeg[] = legs.map((leg: any, idx: number) => {
-      const v = venueMap.get(leg.venueId);
-      return {
-        legIndex: idx + 1,
-        venueId: leg.venueId,
-        venueName: v?.name || `Venue ${idx + 1}`,
-        venueCategory: v?.category || "coworking",
-        venueAddress: v?.address || null,
-        seatId: leg.seatId || null,
-        seatNumber: leg.seatNumber || `Desk-${idx + 1}A`,
-        startTime: leg.startTime || "09:00",
-        endTime: leg.endTime || "12:00",
-        durationHours: Number(leg.durationHours) || 3,
-        amenities: leg.amenities || ["High-Speed WiFi", "Power Outlet"],
-        allocatedRevenue: attributionMap.get(leg.venueId) || 0,
-        status: "PENDING",
-      };
-    });
+    const enrichedLegs: WorkHopLeg[] = validatedLegs.map(
+      (leg: any, idx: number) => {
+        const v = venueMap.get(leg.venueId);
+        return {
+          legIndex: idx + 1,
+          venueId: leg.venueId,
+          venueName: v?.name || `Venue ${idx + 1}`,
+          venueCategory: v?.category || "coworking",
+          venueAddress: v?.address || null,
+          seatId: leg.seatId || null,
+          seatNumber: leg.seatNumber || `Desk-${idx + 1}A`,
+          startTime: leg.startTime || "09:00",
+          endTime: leg.endTime || "12:00",
+          durationHours: leg.durationHours,
+          amenities: leg.amenities || ["High-Speed WiFi", "Power Outlet"],
+          allocatedRevenue: attributionMap.get(leg.venueId) || 0,
+          status: "PENDING",
+        };
+      },
+    );
 
     // Create atomic individual Booking records in DB to secure seats
     const createdBookings = await Promise.all(
@@ -195,7 +257,7 @@ export async function POST(req: NextRequest) {
             venueId: leg.venueId,
             date,
             time: leg.startTime,
-            duration: leg.durationHours * 60,
+            duration: Math.round(leg.durationHours * 60),
             customerEmail,
             customerPhone,
             seatId: leg.seatId || undefined,
