@@ -12,7 +12,11 @@ import YProvider from "y-partykit/provider";
 import * as Y from "yjs";
 import { useHydrationComplete } from "@/hooks/useHydrationComplete";
 
-import { encodeBinaryMessage, decodeIncomingMessage, RawEnvelope } from "@/party/binaryMessageBroker";
+import {
+  encodeBinaryMessage,
+  decodeIncomingMessage,
+  RawEnvelope,
+} from "@/party/binaryMessageBroker";
 
 export {
   ConnectionStatus,
@@ -236,6 +240,8 @@ export function useMultiplayerSession(roomId: string | null) {
   const { getToken } = useAuth();
   const [token, setToken] = useState<string | null>(null);
   const isHydrated = useHydrationComplete();
+  const partykitHost =
+    process.env.NEXT_PUBLIC_PARTYKIT_HOST || "127.0.0.1:1999";
 
   useEffect(() => {
     getToken().then(setToken).catch(console.error);
@@ -249,7 +255,7 @@ export function useMultiplayerSession(roomId: string | null) {
     }
 
     const doc = new Y.Doc();
-    const newProvider = new YProvider("127.0.0.1:1999", roomId, doc, {
+    const newProvider = new YProvider(partykitHost, roomId, doc, {
       params: token ? { token } : {},
     });
 
@@ -260,10 +266,10 @@ export function useMultiplayerSession(roomId: string | null) {
       newProvider.disconnect();
       doc.destroy();
     };
-  }, [roomId, token, isHydrated]);
+  }, [roomId, token, isHydrated, partykitHost]);
 
   const socket = usePartySocket({
-    host: "127.0.0.1:1999",
+    host: partykitHost,
     room: isHydrated && roomId ? roomId : "placeholder",
     startClosed: !isHydrated,
     query: token ? { token } : undefined,
@@ -273,7 +279,10 @@ export function useMultiplayerSession(roomId: string | null) {
           decodeIncomingMessage(event.data);
         }
       } catch (err) {
-        console.error("[RealTime] Failed to decode protobuf socket message:", err);
+        console.error(
+          "[RealTime] Failed to decode protobuf socket message:",
+          err,
+        );
       }
     },
   });
@@ -285,15 +294,15 @@ export function useMultiplayerSession(roomId: string | null) {
           const binaryBuffer = encodeBinaryMessage(envelope);
           const arrayBuffer = binaryBuffer.buffer.slice(
             binaryBuffer.byteOffset,
-            binaryBuffer.byteOffset + binaryBuffer.byteLength
+            binaryBuffer.byteOffset + binaryBuffer.byteLength,
           );
           socket.send(arrayBuffer);
-        } catch (err) {
+        } catch {
           socket.send(JSON.stringify(envelope));
         }
       }
     },
-    [socket]
+    [socket],
   );
 
   return { provider, yDoc, socket, sendBinaryMessage, isHydrated };
