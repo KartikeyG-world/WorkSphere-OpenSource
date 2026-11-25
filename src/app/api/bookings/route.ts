@@ -27,13 +27,13 @@ const bookingTimeString = z
     "Time must be a valid 24-hour time in HH:mm format",
   );
 
+export const MAX_BOOKING_DATES = 30;
+
 const createBookingSchema = z
   .object({
     venueId: z.string().min(1, "venueId is required"),
     date: isoDateString.optional(),
-    dates: z
-      .union([isoDateString, z.array(isoDateString).min(1)])
-      .optional(),
+    dates: z.union([isoDateString, z.array(isoDateString).min(1)]).optional(),
     time: bookingTimeString,
     guestCount: z.number().int().min(1).optional().nullable(),
   })
@@ -51,6 +51,14 @@ const createBookingSchema = z
   }))
   .refine((data) => data.dates.length > 0, {
     message: "At least one valid date is required",
+    path: ["dates"],
+  })
+  .refine((data) => data.dates.length <= MAX_BOOKING_DATES, {
+    message: `Cannot book more than ${MAX_BOOKING_DATES} dates in a single request`,
+    path: ["dates"],
+  })
+  .refine((data) => new Set(data.dates).size === data.dates.length, {
+    message: "Duplicate dates are not allowed in a multi-date booking request",
     path: ["dates"],
   });
 
