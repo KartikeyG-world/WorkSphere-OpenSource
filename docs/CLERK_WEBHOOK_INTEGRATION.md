@@ -45,11 +45,11 @@ Webhooks are what keep these two systems in sync. Every time Clerk creates, upda
 ```
 Clerk Dashboard
      │
-     │  HTTPS POST  /api/webhook
+     │  HTTPS POST  /api/webhooks/clerk
      │  Headers: svix-id, svix-timestamp, svix-signature
      │  Body: JSON event payload
      ▼
-src/app/api/webhook/route.ts
+src/app/api/webhooks/clerk/route.ts
      │
      ├─ 1. Read svix-* headers
      │
@@ -78,8 +78,8 @@ The route returns HTTP `200` on success. Clerk will retry failed deliveries auto
 3. Navigate to **Webhooks** in the left-hand sidebar.
 4. Click **Add Endpoint**.
 5. Set the **Endpoint URL** to your deployment's webhook path:
-   - Production: `https://your-domain.com/api/webhook`
-   - Local dev (via tunnel): `https://your-ngrok-url.ngrok-free.app/api/webhook`
+   - Production: `https://your-domain.com/api/webhooks/clerk`
+   - Local dev (via tunnel): `https://your-ngrok-url.ngrok-free.app/api/webhooks/clerk`
 6. Under **Message Filtering**, enable these three events:
    - `user.created`
    - `user.updated`
@@ -112,12 +112,12 @@ For a full list of all environment variables, see [`docs/ENV_VARS.md`](./ENV_VAR
 
 ## Step 3: How the Route Handler Works
 
-**File:** `src/app/api/webhook/route.ts`
+**File:** `src/app/api/webhooks/clerk/route.ts`
 
 The handler is a Next.js App Router `POST` function. Here is the execution flow step by step:
 
 ```
-POST /api/webhook
+POST /api/webhooks/clerk
      │
      ▼
 1.  Read WEBHOOK_SECRET from process.env
@@ -403,23 +403,23 @@ DATABASE_URL=postgresql://...
 
 ### Clerk Dashboard configuration checklist
 
-- [ ] Webhook endpoint URL points to your production domain (`https://your-domain.com/api/webhook`)
+- [ ] Webhook endpoint URL points to your production domain (`https://your-domain.com/api/webhooks/clerk`)
 - [ ] `user.created`, `user.updated`, and `user.deleted` events are enabled
-- [ ] The `WEBHOOK_SECRET` in your hosting provider matches the signing secret shown in the Clerk Dashboard
+- [ ] The `CLERK_WEBHOOK_SIGNING_SECRET` (or `CLERK_WEBHOOK_SECRET` / `WEBHOOK_SECRET`) in your hosting provider matches the signing secret shown in the Clerk Dashboard
 - [ ] The webhook endpoint is saved and shows a green status indicator
 
 ### Deployment considerations
 
 **Vercel**
 
-- Add `WEBHOOK_SECRET` via the Vercel project dashboard under **Settings → Environment Variables**.
+- Add `CLERK_WEBHOOK_SIGNING_SECRET` via the Vercel project dashboard under **Settings → Environment Variables**.
 - Ensure the variable is scoped to the Production environment (and Preview if you want webhook testing on preview deployments).
 - Vercel serverless functions are stateless; the handler is safe as-is.
 
 **Docker / self-hosted**
 
-- Inject `WEBHOOK_SECRET` via environment variables in your container runtime or secrets manager.
-- Ensure the `/api/webhook` path is reachable from the public internet (not behind a VPN or firewall).
+- Inject `CLERK_WEBHOOK_SIGNING_SECRET` via environment variables in your container runtime or secrets manager.
+- Ensure the `/api/webhooks/clerk` path is reachable from the public internet (not behind a VPN or firewall).
 
 **Rate limiting**
 
@@ -449,9 +449,9 @@ ngrok http 3000
 
 Copy the `https://xxxx.ngrok-free.app` URL from ngrok's output, then:
 
-1. In the Clerk Dashboard, add a new webhook endpoint: `https://xxxx.ngrok-free.app/api/webhook`
+1. In the Clerk Dashboard, add a new webhook endpoint: `https://xxxx.ngrok-free.app/api/webhooks/clerk`
 2. Enable `user.created`, `user.updated`, `user.deleted`
-3. Copy the signing secret to your `.env.local` as `WEBHOOK_SECRET`
+3. Copy the signing secret to your `.env.local` as `CLERK_WEBHOOK_SIGNING_SECRET`
 
 Trigger events by registering a new user in your local app and watch the terminal logs.
 
@@ -464,7 +464,7 @@ Svix provides a CLI for replaying past events or sending test payloads:
 npm install -g svix-cli
 
 # Send a test user.created event
-svix message send --url http://localhost:3000/api/webhook --event-type user.created --data '{"id":"user_test","email_addresses":[{"email_address":"test@example.com"}],"first_name":"Test","last_name":"User","image_url":null}'
+svix message send --url http://localhost:3000/api/webhooks/clerk --event-type user.created --data '{"id":"user_test","email_addresses":[{"email_address":"test@example.com"}],"first_name":"Test","last_name":"User","image_url":null}'
 ```
 
 ### Option 3: Clerk Dashboard test events
@@ -558,12 +558,12 @@ Open Prisma Studio at `http://localhost:5555`, navigate to the `User` table, and
 
 ## Related Files
 
-| File                           | Purpose                                                                    |
-| ------------------------------ | -------------------------------------------------------------------------- |
-| `src/app/api/webhook/route.ts` | Webhook handler — Svix verification and database sync                      |
-| `src/middleware.ts`            | Lists `/api/webhook` as a public route bypassing session auth              |
-| `src/lib/auth.ts`              | `ensureUserExists()` fallback for cases where the webhook hasn't fired yet |
-| `prisma/schema.prisma`         | `User` model definition                                                    |
-| `docs/CLERK_JWT_VALIDATION.md` | Session-based authentication flow (separate from webhooks)                 |
-| `docs/CLERK_AUTH_SESSION.md`   | Clerk session lifecycle and middleware routing                             |
-| `docs/ENV_VARS.md`             | Full environment variable reference including `WEBHOOK_SECRET`             |
+| File                                  | Purpose                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| `src/app/api/webhooks/clerk/route.ts` | Canonical webhook handler — Svix verification and database sync            |
+| `src/middleware.ts`                   | Matches `/api/webhooks/*` as public routes bypassing session auth          |
+| `src/lib/auth.ts`                     | `ensureUserExists()` fallback for cases where the webhook hasn't fired yet |
+| `prisma/schema.prisma`                | `User` model definition                                                    |
+| `docs/CLERK_JWT_VALIDATION.md`        | Session-based authentication flow (separate from webhooks)                 |
+| `docs/CLERK_AUTH_SESSION.md`          | Clerk session lifecycle and middleware routing                             |
+| `docs/ENV_VARS.md`                    | Full environment variable reference including `WEBHOOK_SECRET`             |
