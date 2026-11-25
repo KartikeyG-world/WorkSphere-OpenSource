@@ -501,29 +501,31 @@ For detailed request and response contracts, concurrency guarantees, waitlist me
 
 # Other APIs
 
-| Endpoint                         | Description                                                              |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| `POST /api/chat`                 | AI chat endpoint.                                                        |
-| `POST /api/upload`               | Upload files.                                                            |
-| `POST /api/translate`            | Translate content.                                                       |
-| `POST /api/menu-translate`       | Translate venue menus.                                                   |
-| `GET /api/newsletter`            | Newsletter subscription endpoint.                                        |
-| `GET /api/memory`                | Memory service endpoint.                                                 |
-| `POST /api/memory/extract`       | Extract structured memory.                                               |
-| `GET /api/sync`                  | Synchronise application data.                                            |
-| `GET /api/jobs/{jobId}`          | Retrieve job status.                                                     |
-| `POST /api/push/subscribe`       | Subscribe to push notifications.                                         |
-| `POST /api/push/unsubscribe`     | Unsubscribe from push notifications.                                     |
-| `GET /api/push/vapid-public-key` | Retrieve the VAPID public key.                                           |
-| `POST /api/webhook`              | Webhook endpoint.                                                        |
-| `POST /api/webhooks/test`        | Test webhook endpoint.                                                   |
-| `POST /api/webhooks/worker`      | Worker webhook endpoint.                                                 |
-| `POST /api/telemetry/noise`      | Ingest IoT hardware acoustic sensor telemetry with differential privacy. |
-| `POST /api/partykit/auth`        | Authenticate PartyKit connections.                                       |
-| `GET /api/availability/delta`    | Retrieve availability updates.                                           |
-| `POST /api/cron/reminders`       | Scheduled reminder task.                                                 |
-| `GET /api/ar/anchors`            | Retrieve AR anchors.                                                     |
-| `GET /api/ar/anchors/{id}`       | Retrieve a specific AR anchor.                                           |
+| Endpoint                          | Description                                                              |
+| --------------------------------- | ------------------------------------------------------------------------ |
+| `POST /api/chat`                  | AI chat endpoint.                                                        |
+| `POST /api/upload`                | Upload files.                                                            |
+| `POST /api/translate`             | Translate content.                                                       |
+| `POST /api/menu-translate`        | Translate venue menus.                                                   |
+| `GET /api/newsletter`             | Newsletter subscription endpoint.                                        |
+| `GET /api/memory`                 | Memory service endpoint.                                                 |
+| `POST /api/memory/extract`        | Extract structured memory.                                               |
+| `GET /api/sync`                   | Synchronise application data.                                            |
+| `GET /api/jobs/{jobId}`           | Retrieve job status.                                                     |
+| `POST /api/push/subscribe`        | Subscribe to push notifications.                                         |
+| `POST /api/push/unsubscribe`      | Unsubscribe from push notifications.                                     |
+| `GET /api/push/vapid-public-key`  | Retrieve the VAPID public key.                                           |
+| `POST /api/webhooks/clerk`        | Inbound Clerk user lifecycle webhook (Svix signature verified).          |
+| `POST /api/webhooks/payment`      | Inbound split-payment confirmation webhook.                              |
+| `POST /api/webhooks/venue-cancel` | Inbound venue cancellation webhook.                                      |
+| `POST /api/webhooks/test`         | Test webhook endpoint.                                                   |
+| `POST /api/webhooks/worker`       | Worker webhook endpoint.                                                 |
+| `POST /api/telemetry/noise`       | Ingest IoT hardware acoustic sensor telemetry with differential privacy. |
+| `POST /api/partykit/auth`         | Authenticate PartyKit connections.                                       |
+| `GET /api/availability/delta`     | Retrieve availability updates.                                           |
+| `POST /api/cron/reminders`        | Scheduled reminder task.                                                 |
+| `GET /api/ar/anchors`             | Retrieve AR anchors.                                                     |
+| `GET /api/ar/anchors/{id}`        | Retrieve a specific AR anchor.                                           |
 
 ---
 
@@ -548,7 +550,7 @@ Limits vary depending on endpoint sensitivity, resource consumption, and client 
 | **Bookings & Payments**        | `/api/bookings/*`<br>`/api/reservations/*`<br>`/api/receipts/*`                              | Clerk User ID (`userId`)                     | **60 requests / 15 minutes** (Auth)<br>**10 requests / 15 minutes** (Anon) | Transactional reservation creation and seat allocation workflows.                      |
 | **Telemetry & Sensor Streams** | `/api/telemetry/*`<br>`/api/venues/{id}/noise-metrics`<br>`/api/venues/{id}/wifi-prediction` | Venue/Client Device Key or Client IP         | **120 requests / 1 minute**                                                | Acoustic sensor telemetry, live Wi-Fi latency updates, and crowd density samples.      |
 | **Admin & Performance**        | `/api/admin/*`                                                                               | Clerk Admin User ID                          | **120 requests / 1 minute**                                                | Partition management, administrative analytics, and audit logging.                     |
-| **Webhooks & Cron (Exempt)**   | `/api/webhook/*`<br>`/api/cron/*`<br>`/api/webhooks/worker`                                  | Cryptographic signature                      | **1,000 req/min** or **Exempt**                                            | Verified incoming webhooks and automated Vercel Cron jobs bypass public rate limiters. |
+| **Webhooks & Cron (Exempt)**   | `/api/webhooks/*`<br>`/api/cron/*`                                                           | Cryptographic signature                      | **1,000 req/min** or **Exempt**                                            | Verified incoming webhooks and automated Vercel Cron jobs bypass public rate limiters. |
 
 #### Anonymous vs Authenticated User Quotas
 
