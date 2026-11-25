@@ -19,7 +19,7 @@ This document explains:
 Create a webhook endpoint in the Clerk Dashboard that points to:
 
 ```
-/api/webhook
+/api/webhooks/clerk
 ```
 
 Enable the following events:
@@ -28,15 +28,18 @@ Enable the following events:
 - `user.updated`
 - `user.deleted`
 
-After creating the webhook, copy the **Webhook Secret** and store it securely as an environment variable.
+After creating the webhook, copy the **Webhook Secret** (starts with `whsec_`) and store it securely as an environment variable.
 
 ## Required Environment Variable
 
 ```
-WEBHOOK_SECRET=<your_clerk_webhook_secret>
+CLERK_WEBHOOK_SIGNING_SECRET=<your_clerk_webhook_signing_secret>
 ```
 
-The webhook route uses this secret to verify that every incoming request was sent by Clerk before processing the payload.
+> [!NOTE]
+> `CLERK_WEBHOOK_SECRET` and `WEBHOOK_SECRET` are also supported as legacy compatibility fallbacks.
+
+The webhook route (`src/app/api/webhooks/clerk/route.ts`) uses this secret to verify that every incoming request was sent by Clerk before processing the payload.
 
 ---
 
@@ -50,7 +53,7 @@ When Clerk sends a webhook request, the application first extracts the required 
 
 If any required header is missing, the request is rejected with a **400 Bad Request** response.
 
-After the headers are validated, the request body is verified using the configured `WEBHOOK_SECRET`.
+After the headers are validated, the request body is verified using the configured `CLERK_WEBHOOK_SIGNING_SECRET` (or fallback keys).
 
 Example verification flow:
 
@@ -116,7 +119,8 @@ If a database operation fails after successful verification, the error is logged
 
 # Related Files
 
-- `src/app/api/webhook/route.ts`
+- `src/app/api/webhooks/clerk/route.ts`
+- `docs/auth/CLERK_WEBHOOK_INTEGRATION.md`
 - `docs/CLERK_JWT_VALIDATION.md`
 - `docs/ENV_VARS.md`
 
